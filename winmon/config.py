@@ -51,6 +51,17 @@ DEFAULT_CONFIG = {
             "alert": True,
             "description": "RDP and TeamViewer connections"
         },
+        "network": {
+            "enabled": True,
+            "alert": True,
+            "description": "Wi-Fi, IP, and network connection changes",
+            "watch_outbound": False
+        },
+        "power": {
+            "enabled": True,
+            "alert": True,
+            "description": "Laptop power and battery (auto-idle on desktops)"
+        },
         "filesystem": {
             "enabled": True,
             "alert": True,

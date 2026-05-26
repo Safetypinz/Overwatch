@@ -2,7 +2,7 @@
 
 # Categories that signal "someone is touching this computer" — escalated to
 # critical when the user has flipped Away Mode on.
-SNOOP_CATEGORIES = {"login", "session", "usb", "rdp", "filesystem"}
+SNOOP_CATEGORIES = {"login", "session", "usb", "rdp", "filesystem", "network", "power"}
 
 
 def maybe_escalate(config, category: str, severity: str) -> tuple[str, bool]:

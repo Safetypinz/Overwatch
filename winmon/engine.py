@@ -16,6 +16,8 @@ from winmon.monitors.process_monitor import ProcessMonitor
 from winmon.monitors.usb_monitor import USBMonitor
 from winmon.monitors.rdp_monitor import RDPMonitor
 from winmon.monitors.filesystem_monitor import FileSystemMonitor
+from winmon.monitors.network_monitor import NetworkMonitor
+from winmon.monitors.power_monitor import PowerMonitor
 
 log = logging.getLogger("winmon.engine")
 
@@ -26,6 +28,8 @@ MONITOR_CLASSES = [
     USBMonitor,
     RDPMonitor,
     FileSystemMonitor,
+    NetworkMonitor,
+    PowerMonitor,
 ]
 
 

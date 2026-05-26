@@ -111,13 +111,16 @@ async function loadConfig() {
 }
 
 async function renderMonitorToggles() {
-  const monitors = ["login", "process", "usb", "rdp", "filesystem"];
+  const monitors = ["session", "login", "process", "usb", "rdp", "filesystem", "network", "power"];
   const labels = {
-    login: ["Login", "User logon/logoff events via WMI"],
-    process: ["Process", "New process creation — alerts on watchlisted executables"],
-    usb: ["USB", "USB device insertion and removal"],
-    rdp: ["RDP", "Remote desktop, TeamViewer, AnyDesk, VNC connections"],
-    filesystem: ["Filesystem", "File changes in watched paths"],
+    session: ["Lock / Unlock", "When the computer is locked or unlocked"],
+    login: ["Sign-ins", "Who signs in to this computer"],
+    process: ["Programs", "Suspicious programs being run"],
+    usb: ["USB devices", "USB device insertion and removal"],
+    rdp: ["Remote access", "Remote desktop, TeamViewer, AnyDesk, VNC"],
+    filesystem: ["File changes", "Changes to your Documents, Desktop, Downloads, Pictures"],
+    network: ["Network", "Wi-Fi changes, joining new networks"],
+    power: ["Laptop power", "Charger unplugged, battery (laptops only)"],
   };
 
   const container = $("#monitor-toggles");

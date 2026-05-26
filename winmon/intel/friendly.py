@@ -206,8 +206,45 @@ def friendly_summary(category: str, *, summary: str = "", details: Optional[str]
         return _friendly_filesystem(summary=summary, details=details)
     if cat == "session":
         return _friendly_session(summary=summary, analysis=analysis or {})
+    if cat == "network":
+        return _friendly_network(summary=summary, analysis=analysis or {})
+    if cat == "power":
+        return _friendly_power(summary=summary, analysis=analysis or {})
     if cat == "system":
         return _friendly_system(summary=summary)
+    return summary
+
+
+def _friendly_network(*, summary: str, analysis: dict) -> str:
+    kind = analysis.get("kind", "")
+    s = summary.lower()
+    if kind == "wifi_change" or "network changed" in s:
+        net = summary.split("to", 1)[-1].strip() if "to" in summary else ""
+        return f"This computer switched to a different Wi-Fi network{(' (' + net + ')') if net else ''}."
+    if kind == "wifi_connect" or "connected to" in s:
+        net = summary.split("to", 1)[-1].strip() if "to" in summary else ""
+        return f"This computer connected to Wi-Fi{(' (' + net + ')') if net else ''}."
+    if kind == "wifi_disconnect" or "disconnected" in s:
+        return "This computer disconnected from Wi-Fi."
+    if kind == "ip_change" or "joined a new network" in s:
+        return "This computer joined a different network."
+    if kind == "outbound":
+        return summary  # advanced-only, leave technical
+    return summary
+
+
+def _friendly_power(*, summary: str, analysis: dict) -> str:
+    s = summary.lower()
+    if "unplugged" in s or "on battery" in s:
+        return "The charger was unplugged - the laptop may be on the move."
+    if "plugged in" in s or "on ac" in s or "charging" in s:
+        return "The laptop was plugged in to power."
+    if "lid open" in s or "opened" in s:
+        return "The laptop lid was opened."
+    if "lid clos" in s or "closed" in s:
+        return "The laptop lid was closed."
+    if "low battery" in s:
+        return "The laptop battery is running low."
     return summary
 
 

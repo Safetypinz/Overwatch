@@ -20,6 +20,8 @@ const MONITOR_LABELS = {
   USBMonitor:        { basic: "USB devices",                  advanced: "USB",        category: "usb" },
   RDPMonitor:        { basic: "Remote connections",           advanced: "RDP",        category: "rdp" },
   FileSystemMonitor: { basic: "Files in sensitive folders",   advanced: "Filesystem", category: "filesystem" },
+  NetworkMonitor:    { basic: "Wi-Fi & network changes",      advanced: "Network",    category: "network" },
+  PowerMonitor:      { basic: "Laptop power & battery",        advanced: "Power",      category: "power" },
 };
 
 // Initialized before applyMode() to avoid temporal dead zone error.
