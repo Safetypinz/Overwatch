@@ -5,6 +5,8 @@ import threading
 import time
 import os
 
+from winmon.intel import friendly_summary
+
 log = logging.getLogger("winmon.monitors.rdp")
 
 # Remote access processes to watch for
@@ -110,12 +112,21 @@ class RDPMonitor:
                                 f"PID: {proc.pid}\n"
                                 f"User: {proc.info.get('username', 'N/A')}"
                             )
-                            self._db.log_event(self.CATEGORY, summary, details,
-                                               "warning", source="process_scan",
-                                               alerted=True)
+                            friendly = friendly_summary(
+                                self.CATEGORY, summary=summary, details=details
+                            )
+                            self._db.log_event(
+                                self.CATEGORY, summary, details, "critical",
+                                source="process_scan", alerted=True,
+                                friendly_summary=friendly,
+                                attack_tags=["T1219"],
+                                dedup_key=f"rdp:tool:{name}",
+                            )
                             if self._config.get("monitors", "rdp", "alert"):
-                                self._notifier.send_alert(self.CATEGORY, summary,
-                                                          details, "warning")
+                                self._notifier.send_alert(
+                                    self.CATEGORY, friendly or summary,
+                                    details, "warning"
+                                )
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                         continue
 
@@ -155,12 +166,21 @@ class RDPMonitor:
                             self._known_remote_pids.add(pid)
                             summary = f"Remote access detected: {tool}"
                             details = f"Process: {name_lower}\nPID: {pid}"
-                            self._db.log_event(self.CATEGORY, summary, details,
-                                               "warning", source="WMI",
-                                               alerted=True)
+                            friendly = friendly_summary(
+                                self.CATEGORY, summary=summary, details=details
+                            )
+                            self._db.log_event(
+                                self.CATEGORY, summary, details, "critical",
+                                source="WMI", alerted=True,
+                                friendly_summary=friendly,
+                                attack_tags=["T1219"],
+                                dedup_key=f"rdp:tool:{name_lower}",
+                            )
                             if self._config.get("monitors", "rdp", "alert"):
-                                self._notifier.send_alert(self.CATEGORY, summary,
-                                                          details, "warning")
+                                self._notifier.send_alert(
+                                    self.CATEGORY, friendly or summary,
+                                    details, "warning"
+                                )
             except Exception as e:
                 log.error("WMI RDP process watch error: %s", e)
             time.sleep(5)
@@ -228,12 +248,24 @@ class RDPMonitor:
                             )
 
                             severity = "warning" if eid in (4625,) else "info"
-                            self._db.log_event(self.CATEGORY, summary, details,
-                                               severity, source="EventLog",
-                                               alerted=True)
-                            if self._config.get("monitors", "rdp", "alert"):
-                                self._notifier.send_alert(self.CATEGORY, summary,
-                                                          details, severity)
+                            friendly = friendly_summary(
+                                self.CATEGORY, summary=summary, details=details
+                            )
+                            tags = ["T1021.001"]
+                            if eid == 4625:
+                                tags.append("T1110")
+                            self._db.log_event(
+                                self.CATEGORY, summary, details, severity,
+                                source="EventLog", alerted=(severity != "info"),
+                                friendly_summary=friendly,
+                                attack_tags=tags,
+                                dedup_key=f"rdp:eid:{eid}",
+                            )
+                            if severity != "info" and self._config.get("monitors", "rdp", "alert"):
+                                self._notifier.send_alert(
+                                    self.CATEGORY, friendly or summary,
+                                    details, severity
+                                )
 
                         last_record[log_name] = max(
                             last_record.get(log_name, 0), record_num
@@ -264,12 +296,21 @@ class RDPMonitor:
                             known_connections.add(key)
                             summary = f"Active RDP connection from {remote}"
                             details = f"Local: {conn.laddr}\nRemote: {conn.raddr}\nPID: {conn.pid}"
-                            self._db.log_event(self.CATEGORY, summary, details,
-                                               "warning", source="netstat",
-                                               alerted=True)
+                            friendly = friendly_summary(
+                                self.CATEGORY, summary=summary, details=details
+                            )
+                            self._db.log_event(
+                                self.CATEGORY, summary, details, "critical",
+                                source="netstat", alerted=True,
+                                friendly_summary=friendly,
+                                attack_tags=["T1021.001", "T1133"],
+                                dedup_key=f"rdp:port:{remote}",
+                            )
                             if self._config.get("monitors", "rdp", "alert"):
-                                self._notifier.send_alert(self.CATEGORY, summary,
-                                                          details, "warning")
+                                self._notifier.send_alert(
+                                    self.CATEGORY, friendly or summary,
+                                    details, "warning"
+                                )
 
                 # Clean stale connections
                 active = set()
