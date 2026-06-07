@@ -1,7 +1,13 @@
 __pycache__/
 *.pyc
 venv/
+.venv/
 *.db
 *.db-shm
 *.db-wal
 *.log
+# local runtime config holds the Telegram bot token / chat id — never commit
+config.json
+*.env
+.env
+.DS_Store
