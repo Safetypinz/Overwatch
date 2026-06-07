@@ -60,6 +60,16 @@ Mon-Fri 7am-5pm by default: Telegram alerts muted (events still logged to databa
 
 Plain text alerts with machine name, category, severity, and timestamp. Rate-limited to 1 message/second. Configure bot token and chat ID in Settings > Telegram tab. Your bot token and chat ID are stored only in your local config (`%APPDATA%\Overwatch\config.json`), never in this repository.
 
+## Build a standalone .exe (optional)
+
+To produce a single-file `Overwatch.exe` (no Python install needed on the target machine), run on Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build.ps1
+```
+
+Output is `dist\Overwatch.exe`. The build uses PyInstaller with `Overwatch.spec`. WebView2 runtime is required for the dashboard window (preinstalled on Windows 10/11).
+
 ## Windows Service Mode
 
 ```powershell

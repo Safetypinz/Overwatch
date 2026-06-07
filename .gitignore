@@ -11,3 +11,7 @@ config.json
 *.env
 .env
 .DS_Store
+# PyInstaller build artifacts
+build/
+dist/
+build-venv/
