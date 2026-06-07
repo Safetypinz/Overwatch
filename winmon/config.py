@@ -150,11 +150,21 @@ class Config:
                 self.save()
 
     def save(self):
-        """Persist config to disk."""
+        """Persist config to disk atomically.
+
+        Writes to a temp file in the same directory and os.replace()s it into
+        place, so a crash or concurrent save can never leave a truncated/empty
+        config (which load() would treat as corrupt and silently reset to
+        defaults, losing the user's Telegram bot token / chat id).
+        """
         with self._file_lock:
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self._path, "w") as f:
+            tmp = self._path.with_suffix(self._path.suffix + ".tmp")
+            with open(tmp, "w") as f:
                 json.dump(self._data, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, self._path)
 
     def get(self, *keys, default=None):
         """Get a nested config value. Usage: config.get('telegram', 'bot_token')"""

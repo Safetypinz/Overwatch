@@ -71,6 +71,8 @@ class USBMonitor:
     def _fallback_poll(self):
         """Fallback polling mode for USB devices."""
         try:
+            import pythoncom
+            pythoncom.CoInitialize()  # per-thread COM init; this path may run without it
             import wmi
             c = wmi.WMI()
         except Exception:

@@ -148,6 +148,11 @@ class NetworkMonitor:
                                    f"Remote IP: {ip}", "info", dedup=f"net:out:{ip}",
                                    alert=False)
                     self._seen_outbound |= current
+                    # Bound the set so it can't grow without limit on a busy
+                    # host (memory leak). Keep it to the most recent ~5000 IPs;
+                    # re-alerting a long-unseen IP is acceptable.
+                    if len(self._seen_outbound) > 5000:
+                        self._seen_outbound = set(current)
 
             except Exception as e:
                 log.error("Network monitor error: %s", e)

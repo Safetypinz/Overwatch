@@ -1,6 +1,7 @@
 """Windows service wrapper for Overwatch using pywin32."""
 
 import logging
+import logging.handlers  # submodule must be imported explicitly; used by setup_logging()
 import os
 import sys
 import time

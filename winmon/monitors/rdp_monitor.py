@@ -142,6 +142,8 @@ class RDPMonitor:
     def _watch_processes_wmi(self):
         """Fallback: use WMI to watch for remote access processes."""
         try:
+            import pythoncom
+            pythoncom.CoInitialize()  # per-thread COM init, else wmi.WMI() raises
             import wmi
             c = wmi.WMI()
         except Exception:

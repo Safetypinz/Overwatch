@@ -39,6 +39,11 @@ class LoginMonitor:
 
     def _watch_loop(self):
         """Poll WMI for logon session changes."""
+        # WMI uses COM, which must be initialized per-thread. Without this the
+        # very first wmi.WMI() call raises "CoInitialize has not been called"
+        # and the login monitor dies on startup.
+        import pythoncom
+        pythoncom.CoInitialize()
         try:
             import wmi
             c = wmi.WMI()

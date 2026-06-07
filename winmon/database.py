@@ -51,6 +51,10 @@ class EventDB:
             self._local.conn.row_factory = sqlite3.Row
             self._local.conn.execute("PRAGMA journal_mode=WAL")
             self._local.conn.execute("PRAGMA synchronous=NORMAL")
+            # Wait up to 5s for locks instead of erroring immediately. Without
+            # this, cleanup()/VACUUM racing the monitor writer threads throws
+            # "database is locked" (default busy_timeout is 0).
+            self._local.conn.execute("PRAGMA busy_timeout=5000")
         return self._local.conn
 
     def _init_db(self):

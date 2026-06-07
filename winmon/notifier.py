@@ -89,7 +89,13 @@ class TelegramNotifier:
             second=0, microsecond=0
         )
 
-        return start <= now < end
+        # Same-day window (e.g. 07:00-17:00): inside means start <= now < end.
+        # Overnight window (e.g. 22:00-07:00, start > end): inside means
+        # now >= start OR now < end. The naive `start <= now < end` never
+        # matches an overnight window, leaving alerts un-silenced all night.
+        if start <= end:
+            return start <= now < end
+        return now >= start or now < end
 
     def _dispatch_loop(self):
         """Process queued messages with rate limiting."""

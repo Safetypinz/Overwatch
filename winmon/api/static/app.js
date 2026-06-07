@@ -113,7 +113,9 @@ async function refreshStatus() {
     const hourTotal  = Object.values(stats.last_hour || {}).reduce((a, b) => a + b, 0);
     const sev        = stats.severity_today || {};
 
-    $("#stat-today").textContent    = formatCount(todayTotal);
+    const todayEl = $("#stat-today");
+    todayEl.dataset.count = todayTotal;   // keep the raw number; textContent gets formatted ("1.2k")
+    todayEl.textContent              = formatCount(todayTotal);
     $("#stat-hour").textContent     = formatCount(hourTotal);
     $("#stat-critical").textContent = formatCount(sev.critical || 0);
     $("#stat-warning").textContent  = formatCount(sev.warning  || 0);
@@ -333,8 +335,12 @@ function onLiveEvent(ev) {
 function bumpStats(ev) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   if (new Date(ev.timestamp) >= today) {
-    $("#stat-today").textContent =
-      formatCount(parseInt(($("#stat-today").textContent || "0").replace("k","000"), 10) + 1);
+    const el = $("#stat-today");
+    // Read the raw numeric count from the data attribute, not the formatted
+    // text ("1.2k" would parse wrong and reset the counter).
+    const n = parseInt(el.dataset.count || "0", 10) + 1;
+    el.dataset.count = n;
+    el.textContent = formatCount(n);
   }
 }
 
