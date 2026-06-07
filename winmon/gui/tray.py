@@ -19,9 +19,9 @@ def _create_icon_image():
     # Hexagonal shield matching favicon
     draw.polygon(
         [(32, 6), (52, 16), (52, 40), (32, 54), (12, 40), (12, 16)],
-        outline=(94, 234, 212, 255), width=3,
+        outline=(196, 240, 0, 255), width=3,
     )
-    draw.ellipse([(26, 26), (38, 38)], fill=(94, 234, 212, 255))
+    draw.ellipse([(26, 26), (38, 38)], fill=(196, 240, 0, 255))
     return img
 
 
