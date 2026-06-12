@@ -8,14 +8,26 @@ Set-Location $PSScriptRoot
 function Need($code, $msg) { if ($LASTEXITCODE -ne 0) { Write-Error $msg; exit $code } }
 
 # 1. Build venv
+# Prefer Python 3.12 over newer versions. uvicorn[standard]'s native deps
+# (httptools, websockets) often lack pre-built wheels for the very latest
+# Python; targeting 3.12 avoids a source-build that needs MSVC C++ Build Tools.
 $venv = Join-Path $PSScriptRoot "build-venv"
 $venvPy = Join-Path $venv "Scripts\python.exe"
 if (-not (Test-Path $venvPy)) {
     Write-Host "Creating build venv..."
-    py -3 -m venv $venv 2>$null
-    if ($LASTEXITCODE -ne 0) { python -m venv $venv }
+    $created = $false
+    foreach ($pyTag in @('-3.12','-3.11','-3.13','-3')) {
+        py $pyTag -m venv $venv 2>$null
+        if ($LASTEXITCODE -eq 0 -and (Test-Path $venvPy)) {
+            Write-Host "  using py $pyTag"
+            $created = $true
+            break
+        }
+    }
+    if (-not $created) { python -m venv $venv }
     Need 1 "Failed to create venv"
 }
+& $venvPy --version
 
 # 2. Install deps + PyInstaller
 Write-Host "Installing dependencies..."
