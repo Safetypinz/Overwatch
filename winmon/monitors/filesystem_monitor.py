@@ -75,7 +75,7 @@ class FileSystemMonitor:
 
         dir_handle = win32file.CreateFile(
             path,
-            win32con.FILE_LIST_DIRECTORY,
+            0x0001,  # FILE_LIST_DIRECTORY — not exposed via win32con in recent pywin32
             (win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE |
              win32con.FILE_SHARE_DELETE),
             None,
@@ -94,7 +94,7 @@ class FileSystemMonitor:
                      win32con.FILE_NOTIFY_CHANGE_DIR_NAME |
                      win32con.FILE_NOTIFY_CHANGE_SIZE |
                      win32con.FILE_NOTIFY_CHANGE_LAST_WRITE |
-                     win32con.FILE_NOTIFY_CHANGE_CREATION),
+                     0x40),  # FILE_NOTIFY_CHANGE_CREATION — missing from win32con in recent pywin32
                     None,
                     None,
                 )
@@ -153,11 +153,19 @@ class FileSystemMonitor:
     def _handle_change(self, action, filepath, watch_root):
         """Evaluate and log/alert on a file change."""
         ext = Path(filepath).suffix.lower()
-        watched_exts = self._config.get(
-            "monitors", "filesystem", "extensions_watchlist"
-        ) or []
+        watched_exts = [
+            w.lower() for w in (self._config.get(
+                "monitors", "filesystem", "extensions_watchlist"
+            ) or [])
+        ]
 
-        is_suspicious = ext in watched_exts
+        # Catch double-extension tricks: invoice.exe.txt has final-suffix .txt
+        # but Windows will still execute the .exe portion in some open paths.
+        # Match if ANY suffix-like segment is in the watchlist.
+        filename = Path(filepath).name.lower()
+        all_suffixes = {"." + p for p in filename.split(".")[1:] if p}
+        is_suspicious = bool(all_suffixes & set(watched_exts))
+
         severity = "warning" if is_suspicious else "info"
         severity, escalated = maybe_escalate(self._config, self.CATEGORY, severity)
         is_suspicious = is_suspicious or escalated

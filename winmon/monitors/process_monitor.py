@@ -137,6 +137,16 @@ class ProcessMonitor:
             pid=pid, parent_pid=parent_pid, owner=owner,
         )
 
+        # User's explicit watchlist always escalates at least to 'warning'.
+        # The intel module's LOLBin floor (15) plus signed_ms demotion (-10)
+        # leaves powershell.exe at info, but if the user put it on the watchlist
+        # they want to know whenever it runs.
+        watchlist = [w.lower() for w in
+                     (self._config.get("monitors", "process", "watchlist") or [])]
+        if (name or "").lower() in watchlist and analysis["severity"] == "info":
+            analysis["severity"] = "warning"
+            analysis["reasons"].append("on user watchlist")
+
         friendly = friendly_summary("process", name=name, exe=exe, analysis=analysis)
         summary = f"Process started: {name}"
         details = (

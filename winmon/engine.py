@@ -75,6 +75,19 @@ class MonitorEngine:
 
         self.api.start()
         self.notifier.start()
+
+        # Pre-warm WMI in the main thread to serialize win32com.gencache type-lib
+        # generation. Without this, concurrent wmi.WMI() calls from the login,
+        # process, and USB monitor threads race and corrupt module state —
+        # manifests as "Invalid syntax" from watch_for and "module 'wmi' has no
+        # attribute 'WMI'" in sibling threads.
+        try:
+            import pythoncom, wmi
+            pythoncom.CoInitialize()
+            _ = wmi.WMI()
+        except Exception as e:
+            log.warning("WMI pre-warm failed: %s", e)
+
         self._start_monitors()
 
         self._cleanup_thread = threading.Thread(

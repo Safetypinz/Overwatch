@@ -12,6 +12,21 @@ import threading
 import ctypes
 
 
+# pythonw.exe sets sys.stdout/sys.stderr to None. Any library that writes
+# (uvicorn, pywebview, pip-installed package banners) then crashes the
+# entire process with AttributeError before our logging is set up. Redirect
+# to a file so the process survives and the cause is captured.
+if sys.stdout is None or sys.stderr is None:
+    _app_data = os.environ.get("APPDATA", os.path.expanduser("~"))
+    _stdio_log = os.path.join(_app_data, "Overwatch", "logs", "pythonw_stdio.log")
+    os.makedirs(os.path.dirname(_stdio_log), exist_ok=True)
+    _f = open(_stdio_log, "a", buffering=1, encoding="utf-8", errors="replace")
+    if sys.stdout is None:
+        sys.stdout = _f
+    if sys.stderr is None:
+        sys.stderr = _f
+
+
 log = logging.getLogger("winmon.main")
 
 
@@ -100,4 +115,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except BaseException:
+        logging.getLogger("winmon.main").exception("Unhandled exception in main()")
+        raise
