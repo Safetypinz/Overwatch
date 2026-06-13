@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 from winmon.intel.attack_map import ATTACK_TECHNIQUES, technique_url
+from winmon.intel.presence import snapshot as presence_snapshot
 from winmon.system import sync_autostart, is_autostart_enabled
 
 log = logging.getLogger("winmon.api")
@@ -150,7 +151,30 @@ class APIServer:
         async def get_status():
             s = engine.get_status()
             s["away_mode"] = bool(engine.config.get("general", "away_mode"))
+            s["presence"] = presence_snapshot(engine.config)
             return s
+
+        @app.get("/api/system/presence")
+        async def get_presence():
+            return presence_snapshot(engine.config)
+
+        @app.post("/api/system/presence")
+        async def set_presence(payload: dict = Body(...)):
+            """Set presence mode. Body: {mode: "auto"|"force_present"|"force_away"}"""
+            mode = (payload.get("mode") or "auto").lower()
+            if mode not in ("auto", "force_present", "force_away"):
+                raise HTTPException(400, "mode must be auto, force_present, or force_away")
+            engine.config.set("presence", "mode", mode)
+            engine.db.log_event(
+                "system", f"Presence mode set to {mode}",
+                severity="info", source="engine",
+                friendly_summary=(
+                    "Presence mode: auto (quiet while you're using the PC)" if mode == "auto" else
+                    "Presence mode: forced quiet (routine pings off)" if mode == "force_present" else
+                    "Presence mode: forced alert (every event pings)"
+                ),
+            )
+            return presence_snapshot(engine.config)
 
         @app.post("/api/system/pause")
         async def pause():

@@ -42,12 +42,16 @@ class TelegramNotifier:
         log.info("Telegram notifier stopped")
 
     def send_alert(self, category, summary, details=None, severity="info"):
-        """Queue an alert for sending (respects silent hours)."""
+        """Queue an alert for sending (respects silent hours + presence)."""
         if not self._config.get("telegram", "enabled"):
             return
 
         if self._is_silent():
             log.debug("Silent hours active, suppressing alert: %s", summary)
+            return
+
+        if self._is_suppressed_by_presence(severity):
+            log.debug("User present, suppressing info-severity alert: %s", summary)
             return
 
         emoji = {"critical": "!!", "warning": "!", "info": "i"}.get(severity, "i")
@@ -65,6 +69,22 @@ class TelegramNotifier:
     def send_test(self):
         """Send a test message immediately (ignoring silent hours)."""
         self._queue.put("Overwatch Test - Telegram notifications are working!")
+
+    def _is_suppressed_by_presence(self, severity):
+        """When the user is present, drop info-severity pings only.
+
+        Warning/critical always pass through, so genuine intrusion signals
+        (USB connect, RDP, failed logon, suspicious file drop, watchlist
+        process) are never silenced. See winmon/intel/presence.py.
+        """
+        if (severity or "info").lower() != "info":
+            return False
+        try:
+            from winmon.intel.presence import is_user_present
+            return is_user_present(self._config)
+        except Exception as e:
+            log.warning("Presence check failed, defaulting to alert: %s", e)
+            return False
 
     def _is_silent(self):
         """Check if current time falls within silent hours."""

@@ -9,6 +9,9 @@ from winmon.intel.attack_map import (
 )
 from winmon.intel.friendly import friendly_summary
 from winmon.intel.away_mode import maybe_escalate, SNOOP_CATEGORIES
+from winmon.intel.presence import (
+    is_user_present, get_idle_seconds, snapshot as presence_snapshot,
+)
 
 __all__ = [
     "analyse_process", "get_parent_chain", "score_command_line",
@@ -16,4 +19,5 @@ __all__ = [
     "ATTACK_TECHNIQUES", "technique_name", "technique_url",
     "friendly_summary",
     "maybe_escalate", "SNOOP_CATEGORIES",
+    "is_user_present", "get_idle_seconds", "presence_snapshot",
 ]

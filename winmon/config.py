@@ -95,6 +95,15 @@ DEFAULT_CONFIG = {
         # critical severity and forces a Telegram ping. Toggle from the dashboard.
         "away_mode": False,
     },
+    # Presence-aware notification routing. When the user is "present" (recent
+    # mouse/keyboard activity), info-severity Telegram pings are suppressed —
+    # routine self-driven events stop bothering you while you're working.
+    # Events still hit the DB + dashboard; warning/critical always alert.
+    "presence": {
+        "enabled": True,
+        "mode": "auto",  # "auto" | "force_present" | "force_away"
+        "idle_threshold_seconds": 300,
+    },
     "api": {
         "host": "127.0.0.1",
         "port": 7373

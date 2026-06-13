@@ -47,9 +47,32 @@ class TrayApp:
             log.error("Pillow not available — cannot render tray icon")
             return
 
+        presence_menu = Menu(
+            MenuItem(
+                "Auto (quiet while you're at the PC)",
+                lambda i, _: self._set_presence_mode("auto"),
+                checked=lambda i: self._presence_mode() == "auto",
+                radio=True,
+            ),
+            MenuItem(
+                "Quiet (force present)",
+                lambda i, _: self._set_presence_mode("force_present"),
+                checked=lambda i: self._presence_mode() == "force_present",
+                radio=True,
+            ),
+            MenuItem(
+                "Loud (force away — alert everything)",
+                lambda i, _: self._set_presence_mode("force_away"),
+                checked=lambda i: self._presence_mode() == "force_away",
+                radio=True,
+            ),
+        )
+
         menu = Menu(
             MenuItem("Open Dashboard", self._on_dashboard, default=True),
             MenuItem("Settings", self._on_settings),
+            Menu.SEPARATOR,
+            MenuItem(lambda i: f"Mode: {self._presence_label()}", presence_menu),
             Menu.SEPARATOR,
             MenuItem("Send Test Alert", self._on_test_alert),
             MenuItem(
@@ -112,6 +135,32 @@ class TrayApp:
         except Exception as e:
             log.error("Restart error: %s", e)
             icon.notify(f"Restart failed: {e}", "Overwatch")
+
+    # ---- presence helpers -------------------------------------------------
+
+    def _presence_mode(self):
+        return self.engine.config.get("presence", "mode") or "auto"
+
+    def _presence_label(self):
+        mode = self._presence_mode()
+        try:
+            from winmon.intel.presence import is_user_present
+            present = is_user_present(self.engine.config)
+        except Exception:
+            present = False
+        if mode == "force_present":
+            return "Quiet (forced)"
+        if mode == "force_away":
+            return "Loud (forced)"
+        return "Auto — present" if present else "Auto — away"
+
+    def _set_presence_mode(self, mode):
+        try:
+            self.engine.config.set("presence", "mode", mode)
+            if self._icon:
+                self._icon.notify(f"Mode: {mode.replace('_', ' ')}", "Overwatch")
+        except Exception as e:
+            log.error("Failed to set presence mode: %s", e)
 
     def _on_status(self, icon, item):
         try:

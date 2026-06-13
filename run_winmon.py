@@ -16,10 +16,22 @@ import ctypes
 # (uvicorn, pywebview, pip-installed package banners) then crashes the
 # entire process with AttributeError before our logging is set up. Redirect
 # to a file so the process survives and the cause is captured.
+#
+# This runs before the logging module is configured, so we can't use a
+# RotatingFileHandler. Cap manually: if the file is over 1 MB, rotate it
+# to .1 (keeping one backup) so the file can never grow unbounded.
 if sys.stdout is None or sys.stderr is None:
     _app_data = os.environ.get("APPDATA", os.path.expanduser("~"))
     _stdio_log = os.path.join(_app_data, "Overwatch", "logs", "pythonw_stdio.log")
     os.makedirs(os.path.dirname(_stdio_log), exist_ok=True)
+    try:
+        if os.path.exists(_stdio_log) and os.path.getsize(_stdio_log) > 1_000_000:
+            _backup = _stdio_log + ".1"
+            if os.path.exists(_backup):
+                os.remove(_backup)
+            os.replace(_stdio_log, _backup)
+    except OSError:
+        pass
     _f = open(_stdio_log, "a", buffering=1, encoding="utf-8", errors="replace")
     if sys.stdout is None:
         sys.stdout = _f
