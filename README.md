@@ -14,7 +14,7 @@ Real-time Windows security monitoring with Telegram alerts. Watches for logins, 
 ## Requirements
 
 - Windows 10 or 11
-- Python 3.8+ (3.14 tested)
+- Python 3.8–3.12 (3.12 recommended; 3.13+ lacks pre-built wheels for `httptools` / `psutil`)
 - Administrator rights for some monitors (login/process via WMI) and for service mode
 
 ## Monitors
@@ -92,7 +92,7 @@ Stored at `%APPDATA%\Overwatch\config.json`. Editable via the Settings GUI or di
 
 ## Dependencies
 
-- Python 3.8+ (3.14 tested)
+- Python 3.8–3.12 (3.12 recommended; 3.13+ lacks pre-built wheels for `httptools` / `psutil`)
 - wmi, pywin32, psutil, pystray, Pillow
 - tkinter and sqlite3 (stdlib)
 
