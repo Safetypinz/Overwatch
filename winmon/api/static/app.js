@@ -108,6 +108,19 @@ async function refreshStatus() {
       if (label) label.textContent = status.away_mode ? "AWAY MODE: ON" : "AWAY MODE";
     }
 
+    // Update-available banner (defensive: tolerate missing element on stale HTML)
+    const banner = $("#update-banner");
+    if (banner) {
+      const upd = status.update || {};
+      banner.hidden = !upd.available;
+      if (upd.available) {
+        const ver = $("#update-version");
+        if (ver) ver.textContent = `v${upd.latest}`;
+        const link = $("#update-link");
+        if (link && upd.url) link.href = upd.url;
+      }
+    }
+
     const stats = status.stats || {};
     const todayTotal = Object.values(stats.today || {}).reduce((a, b) => a + b, 0);
     const hourTotal  = Object.values(stats.last_hour || {}).reduce((a, b) => a + b, 0);

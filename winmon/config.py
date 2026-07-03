@@ -107,6 +107,12 @@ DEFAULT_CONFIG = {
     "api": {
         "host": "127.0.0.1",
         "port": 7373
+    },
+    # Daily anonymous version check against vortenia.com. The request carries
+    # no data beyond a User-Agent with the running version; see README.
+    "updates": {
+        "enabled": True,
+        "check_url": "https://vortenia.com/version/overwatch.json"
     }
 }
 

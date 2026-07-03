@@ -77,6 +77,10 @@ Mon-Fri 7am-5pm by default: Telegram alerts muted (events still logged to databa
 
 Plain text alerts with machine name, category, severity, and timestamp. Rate-limited to 1 message/second. Configure bot token and chat ID in Settings > Telegram tab. Your bot token and chat ID are stored only in your local config (`%APPDATA%\Overwatch\config.json`), never in this repository.
 
+## Update Check
+
+Once a day, Overwatch fetches `https://vortenia.com/version/overwatch.json` to see if a newer version exists. If one does, the dashboard shows a banner with a download link. **No data is sent**: the request carries nothing beyond a User-Agent header with the running version — no machine ID, no config, no event data. Disable it in `config.json` by setting `updates.enabled` to `false`.
+
 ## Build a standalone .exe (optional)
 
 To produce a single-file `Overwatch.exe` (no Python install needed on the target machine), run on Windows:
@@ -121,6 +125,7 @@ Stored at `%APPDATA%\Overwatch\config.json`. Editable via the Settings GUI or di
 - Plain-English event summaries in basic mode; detailed mode adds process analysis (parent chain, command-line scoring, signing checks) with MITRE ATT&CK technique tags
 - Away Mode: one toggle escalates all snoop-relevant events to critical and forces Telegram pings, even during silent hours
 - Presence detection: routine info alerts skip Telegram while you are actively at the keyboard; Auto/Quiet/Loud modes in the tray menu
+- Daily anonymous update check with a dashboard banner when a new version is out; sends no data, off switch in config (see Update Check)
 - New Session monitor: workstation lock/unlock detection without admin rights
 - New Network monitor: Wi-Fi changes, new IP/gateway, optional outbound connection watch
 - New Power monitor for laptops: charger unplug and battery drain while away

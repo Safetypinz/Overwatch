@@ -10,6 +10,7 @@ from winmon.database import EventDB
 from winmon.notifier import TelegramNotifier
 from winmon.api import APIServer
 from winmon.system import sync_autostart, is_autostart_enabled
+from winmon.system.update_check import UpdateChecker
 from winmon.monitors.session_monitor import SessionMonitor
 from winmon.monitors.login_monitor import LoginMonitor
 from winmon.monitors.process_monitor import ProcessMonitor
@@ -45,6 +46,7 @@ class MonitorEngine:
             host=self.config.get("api", "host") or "127.0.0.1",
             port=self.config.get("api", "port") or 7373,
         )
+        self.updates = UpdateChecker(self.config)
         self._monitors = []
         self._running = False
         self._paused = False
@@ -75,6 +77,7 @@ class MonitorEngine:
 
         self.api.start()
         self.notifier.start()
+        self.updates.start()
 
         # Pre-warm WMI in the main thread to serialize win32com.gencache type-lib
         # generation. Without this, concurrent wmi.WMI() calls from the login,
@@ -108,6 +111,7 @@ class MonitorEngine:
         self._running = False
 
         self._stop_monitors()
+        self.updates.stop()
         self.notifier.stop()
         self.api.stop()
 
@@ -198,4 +202,5 @@ class MonitorEngine:
             "stats": self.db.get_stats(),
             "machine_name": self.config.get("general", "machine_name") or "",
             "dashboard_url": self.api.url,
+            "update": self.updates.status(),
         }
