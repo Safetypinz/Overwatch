@@ -78,6 +78,11 @@ for (const tab of $$(".mode-tab")) {
 // ============================================================
 async function api(path, opts = {}) {
   const res = await fetch(path, {
+    // Never read from or write to the WebView2 disk cache. The native window
+    // uses a persistent profile, so a cached /api/status from a prior version
+    // would otherwise resurrect a phantom "update available" banner + stale
+    // stats after an upgrade. Pairs with the server-side no-store headers.
+    cache: "no-store",
     headers: { "Content-Type": "application/json" },
     ...opts,
   });

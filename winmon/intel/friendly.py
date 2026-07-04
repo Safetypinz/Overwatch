@@ -121,10 +121,12 @@ def _friendly_login(*, summary: str, details: Optional[str], analysis: Optional[
 
 def _friendly_usb(*, summary: str) -> str:
     s = summary.lower()
+    # Check disconnect FIRST: "disconnected" contains the substring "connect",
+    # so an "insert/added/connect" test would wrongly match an unplug event.
+    if "remov" in s or "disconnect" in s or "unplug" in s:
+        return "A USB device was unplugged."
     if "insert" in s or "added" in s or "connect" in s:
         return "A USB device was plugged in to this computer."
-    if "remov" in s or "disconnect" in s:
-        return "A USB device was unplugged."
     return summary
 
 

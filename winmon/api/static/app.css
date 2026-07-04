@@ -555,6 +555,10 @@ html[data-mode="basic"] .ev-details {
 ::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
 
 /* ---- update-available banner ---- */
+/* `.update-banner` sets display:flex, which overrides the UA [hidden]
+   display:none — without this rule the banner is ALWAYS visible regardless of
+   the `hidden` attribute the JS toggles. This makes the attribute win again. */
+.update-banner[hidden] { display: none !important; }
 .update-banner {
   max-width: 1400px;
   margin: 16px auto -8px;

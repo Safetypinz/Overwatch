@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
+from winmon import __version__
 from winmon.intel.attack_map import ATTACK_TECHNIQUES, technique_url
 from winmon.intel.presence import snapshot as presence_snapshot
 from winmon.system import sync_autostart, is_autostart_enabled
@@ -107,6 +108,18 @@ class APIServer:
         app = self._app
         engine = self._engine
 
+        # The native WebView2 window uses a PERSISTENT profile (storage_path),
+        # so without this it will HTTP-cache JSON API responses across runs —
+        # including a stale /api/status from a prior version, which resurrects a
+        # phantom "update available" banner and stale stats after an upgrade.
+        # Force every /api/* response to be uncacheable.
+        @app.middleware("http")
+        async def _no_store_api(request: Request, call_next):
+            response = await call_next(request)
+            if request.url.path.startswith("/api/"):
+                response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            return response
+
         # ---- Pages (no-cache + cache-busted asset URLs) ----
         # Inject a version string into every script/stylesheet reference so
         # the browser is forced to refetch when assets change.
@@ -125,6 +138,9 @@ class APIServer:
             html = html.replace('/static/app.css"', f'/static/app.css?v={ver}"')
             html = html.replace('/static/settings.js"', f'/static/settings.js?v={ver}"')
             html = html.replace('/static/settings.css"', f'/static/settings.css?v={ver}"')
+            # Single source of truth for the displayed version: the package
+            # __version__. Avoids the footer drifting out of sync on a release.
+            html = html.replace('{{VERSION}}', __version__)
             return HTMLResponse(html, headers=_NO_CACHE)
 
         @app.get("/")

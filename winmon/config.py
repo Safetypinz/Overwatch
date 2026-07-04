@@ -32,7 +32,12 @@ DEFAULT_CONFIG = {
         },
         "process": {
             "enabled": True,
-            "alert": True,
+            # Dashboard-only by default. Watchlist processes (powershell, cmd,
+            # rundll32, msiexec, ...) fire during ordinary Windows/app activity,
+            # so Telegram-pinging them is noise for the "is someone snooping?"
+            # audience. Events still show in the dashboard; flip to True (or use
+            # Away Mode) if you want them pushed.
+            "alert": False,
             "description": "New process creation",
             "watchlist": [
                 "powershell.exe", "cmd.exe", "wscript.exe", "cscript.exe",
@@ -64,7 +69,12 @@ DEFAULT_CONFIG = {
         },
         "filesystem": {
             "enabled": True,
-            "alert": True,
+            # Dashboard-only by default. Any app that writes to Documents/
+            # Downloads/etc. (browsers, Office autosave, cloud sync) generates
+            # file-change events; pushing them all to Telegram is too chatty for
+            # a normal user. Events still show in the dashboard; Away Mode still
+            # escalates + pings. Flip to True for push on file activity.
+            "alert": False,
             "description": "File system changes in watched paths",
             # Default to the user folders a snoop would actually look in.
             # %USERPROFILE% is expanded at runtime by the filesystem monitor.

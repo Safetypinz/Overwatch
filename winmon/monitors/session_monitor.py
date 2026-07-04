@@ -97,7 +97,13 @@ class SessionMonitor:
             analysis={"username": self._username},
         )
 
-        is_alert = escalated or (severity != "info")
+        # Push policy: locking/unlocking your own machine is a routine self-action.
+        # In normal mode it stays dashboard-only — we don't ping you every time
+        # you step away and come back. Away Mode is the explicit "I'm away, alert
+        # me to anything that touches this PC" switch: when it's on, maybe_escalate()
+        # has already flipped severity to critical (escalated=True) and we push.
+        # Unlock keeps severity="warning" so the dashboard still surfaces it.
+        is_alert = escalated
         if is_alert and self._config.get("monitors", "session", "alert"):
             self._notifier.send_alert(
                 self.CATEGORY, friendly or summary, details, severity

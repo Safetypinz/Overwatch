@@ -58,7 +58,7 @@ class USBMonitor:
                     except wmi.x_wmi_timed_out:
                         continue
 
-                    self._handle_event(event, event_type)
+                    self._handle_event(event, event_type, c)
             finally:
                 pythoncom.CoUninitialize()
 
@@ -110,18 +110,35 @@ class USBMonitor:
 
             time.sleep(5)
 
-    def _handle_event(self, event, event_type):
+    def _handle_event(self, event, event_type, wmi_conn=None):
         """Process a WMI USB event."""
         action = "connected" if event_type == "creation" else "disconnected"
+        dev_name = None
+        dev_id = "Unknown"
         try:
             dependent = event.Dependent
-            dev_name = getattr(dependent, "Name", None) or getattr(dependent, "Caption", "Unknown")
-            dev_id = getattr(dependent, "DeviceID", "Unknown")
+            for attr in ("Name", "Caption", "Description"):
+                val = getattr(dependent, attr, None)
+                if val:
+                    dev_name = val
+                    break
+            dev_id = getattr(dependent, "DeviceID", None) or "Unknown"
         except Exception:
-            dev_name = "USB Device"
             dev_id = str(event)
 
-        self._log_device(action, dev_id, dev_name)
+        # The USBControllerDevice association often doesn't carry a readable name.
+        # Resolve it from the PnP entity by DeviceID so the event names the actual
+        # device (e.g. "SanDisk Ultra USB Device") instead of "Unknown".
+        if not dev_name and wmi_conn is not None and dev_id and dev_id != "Unknown":
+            try:
+                matches = wmi_conn.Win32_PnPEntity(DeviceID=dev_id)
+                if matches:
+                    ent = matches[0]
+                    dev_name = getattr(ent, "Name", None) or getattr(ent, "Caption", None)
+            except Exception:
+                pass
+
+        self._log_device(action, dev_id, dev_name or "a USB device")
 
     def _log_device(self, action, dev_id, dev_name):
         """Log and alert for a USB device event."""
