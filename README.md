@@ -2,6 +2,11 @@
 
 Real-time Windows security monitoring with Telegram alerts, built for snoop detection: know who or what touched your computer, and when. Watches for logins, workstation lock/unlock, suspicious processes, USB devices, remote access connections, network changes, laptop power events, and file system changes. Events show up in a local web dashboard with plain-English summaries; alerts go to Telegram.
 
+**[Download Overwatch.exe (latest release)](https://github.com/Safetypinz/Overwatch/releases/latest)** · Windows 10/11 · free, MIT · [vortenia.com/overwatch](https://vortenia.com/overwatch/)
+
+![Overwatch dashboard: eight monitors watching, a plain-English live event feed, Away Mode one click away](docs/dashboard.png)
+*The dashboard on a demo machine: seeded example data, not a real install.*
+
 ## Quick Start
 
 1. Run `setup.ps1` once to create the Python venv and install dependencies:
