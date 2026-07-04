@@ -31,6 +31,15 @@ config.set("database", "path", str(demo_dir / "winmon_events.db"))
 
 engine = MonitorEngine(config)
 engine.start()
+
+# Monitors were disabled at start so no real threads are watching; flip the
+# config flags now so the dashboard's WATCHING FOR cards read as active.
+# Cosmetic only: threads are decided at start(), nothing real gets logged.
+for name in ["session", "login", "process", "usb", "rdp",
+             "network", "power", "filesystem"]:
+    config.set("monitors", name, {**(config.get("monitors", name) or {}),
+                                  "enabled": True, "alert": True})
+
 print(f"Demo dashboard up: http://127.0.0.1:{config.get('api', 'port')}  (Ctrl+C to stop)")
 try:
     while True:
