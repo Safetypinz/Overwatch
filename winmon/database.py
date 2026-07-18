@@ -1,11 +1,15 @@
 """SQLite event storage for Overwatch with dedup + live listeners."""
 
 import json
+import logging
+import os
 import sqlite3
 import threading
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
+
+log = logging.getLogger("winmon.database")
 
 
 # Columns we expect on the events table — added idempotently by _migrate().
@@ -25,6 +29,12 @@ class EventDB:
 
     def __init__(self, db_path="winmon_events.db", dedup_window_seconds=60):
         self._path = str(db_path)
+        # sqlite3.connect() reports the opaque "unable to open database file"
+        # when the parent dir is missing — create it up front so a fresh
+        # install (or a relocated data dir) can't crash on first connect.
+        parent = Path(self._path).parent
+        if parent and str(parent) not in (".", ""):
+            parent.mkdir(parents=True, exist_ok=True)
         self._local = threading.local()
         self._listeners = []
         self._dedup_window = timedelta(seconds=dedup_window_seconds)
@@ -47,15 +57,43 @@ class EventDB:
     @property
     def _conn(self):
         if not hasattr(self._local, "conn") or self._local.conn is None:
-            self._local.conn = sqlite3.connect(self._path)
-            self._local.conn.row_factory = sqlite3.Row
-            self._local.conn.execute("PRAGMA journal_mode=WAL")
-            self._local.conn.execute("PRAGMA synchronous=NORMAL")
-            # Wait up to 5s for locks instead of erroring immediately. Without
-            # this, cleanup()/VACUUM racing the monitor writer threads throws
-            # "database is locked" (default busy_timeout is 0).
-            self._local.conn.execute("PRAGMA busy_timeout=5000")
+            self._local.conn = self._open()
         return self._local.conn
+
+    def _open(self):
+        """Open a connection, retrying briefly on 'unable to open database file'.
+
+        That error (SQLite CANTOPEN) is usually a missing parent dir — fixed by
+        the mkdir in __init__ — but it can also be TRANSIENT at startup:
+          * antivirus/Defender scanning the freshly written db/exe holds a lock;
+          * a roaming/network %APPDATA% isn't mounted yet right at login;
+          * a just-closed prior instance hasn't released its WAL/-shm handles.
+        Those produced an intermittent startup crash that vanished on the next
+        launch. A short bounded retry turns them into a sub-second delay; if it
+        still fails we log the resolved path + CWD + APPDATA so the next
+        occurrence is diagnosable instead of a bare CANTOPEN.
+        """
+        last = sqlite3.OperationalError("unable to open database file")
+        for attempt in range(5):
+            try:
+                conn = sqlite3.connect(self._path)
+                conn.row_factory = sqlite3.Row
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA synchronous=NORMAL")
+                # Wait up to 5s for locks instead of erroring immediately.
+                # Without this, cleanup()/VACUUM racing the monitor writer
+                # threads throws "database is locked" (default busy_timeout=0).
+                conn.execute("PRAGMA busy_timeout=5000")
+                return conn
+            except sqlite3.OperationalError as e:
+                last = e
+                log.warning("DB open attempt %d/5 failed for %r (cwd=%r): %s",
+                            attempt + 1, self._path, os.getcwd(), e)
+                time.sleep(0.25 * (attempt + 1))
+        log.error("Could not open events DB at %r after 5 attempts "
+                  "(cwd=%r, APPDATA=%r)",
+                  self._path, os.getcwd(), os.environ.get("APPDATA"))
+        raise last
 
     def _init_db(self):
         self._conn.executescript("""

@@ -7,6 +7,7 @@ from datetime import datetime
 
 from winmon.config import Config
 from winmon.database import EventDB
+from winmon.paths import resolve_db_path
 from winmon.notifier import TelegramNotifier
 from winmon.api import APIServer
 from winmon.system import sync_autostart, is_autostart_enabled
@@ -39,7 +40,7 @@ class MonitorEngine:
 
     def __init__(self, config=None):
         self.config = config or Config()
-        self.db = EventDB(self.config.get("database", "path") or "winmon_events.db")
+        self.db = EventDB(resolve_db_path(self.config.get("database", "path")))
         self.notifier = TelegramNotifier(self.config)
         self.api = APIServer(
             self,
