@@ -25,8 +25,12 @@ def resolve_db_path(configured):
     crashes with "unable to open database file" before the app can start.
     Anchor any relative path under %APPDATA%\\Overwatch\\ — the same dir that
     holds config.json and logs — so the DB always lands somewhere writable.
-    Absolute paths (e.g. a user override, or the demo server) pass through.
+    Absolute paths (e.g. a user override, or the demo server) pass through, and
+    the SQLite in-memory sentinel ":memory:" passes through untouched so tests
+    and ad-hoc EventDB(":memory:") callers aren't anchored to a real file.
     """
+    if configured == ":memory:":
+        return configured
     p = Path(configured or "winmon_events.db")
     if not p.is_absolute():
         p = app_data_dir() / p

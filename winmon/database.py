@@ -6,10 +6,28 @@ import os
 import sqlite3
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from winmon.paths import resolve_db_path
+
 log = logging.getLogger("winmon.database")
+
+
+def _utcnow():
+    """Aware UTC now. All stored timestamps are UTC (issue #5).
+
+    v1.1.0 stored UTC; v2.0.1 regressed to naive LOCAL time in the same
+    marker-less TEXT column, so a string ORDER BY interleaved the two and the
+    dashboard froze on old rows. Everything writes UTC (offset-marked) now, and
+    the feed orders by insertion id so pre-fix mixed-tz rows still show
+    newest-first without a risky rewrite of historical data.
+    """
+    return datetime.now(timezone.utc)
+
+
+def _utc_iso():
+    return _utcnow().isoformat()
 
 
 # Columns we expect on the events table — added idempotently by _migrate().
@@ -28,7 +46,12 @@ class EventDB:
     """Thread-safe SQLite event store with deduplication."""
 
     def __init__(self, db_path="winmon_events.db", dedup_window_seconds=60):
-        self._path = str(db_path)
+        # Anchor any bare/relative path under %APPDATA%\Overwatch here, not just
+        # in engine.py's caller (issue #7): a relative path otherwise lands in
+        # the process CWD — the user's home, or System32 for a service — leaving
+        # orphan winmon_events.db files. resolve_db_path() passes absolute paths
+        # and :memory: through untouched, so tests and the demo server are safe.
+        self._path = resolve_db_path(db_path)
         # sqlite3.connect() reports the opaque "unable to open database file"
         # when the parent dir is missing — create it up front so a fresh
         # install (or a relocated data dir) can't crash on first connect.
@@ -146,7 +169,7 @@ class EventDB:
         upward) and its id is returned.
         """
         with self._write_lock:
-            now = datetime.now().isoformat()
+            now = _utc_iso()
             attack_tags_json = json.dumps(attack_tags) if attack_tags else None
             parent_tree_json = json.dumps(parent_tree) if parent_tree else None
 
@@ -155,7 +178,7 @@ class EventDB:
             dedup_count = 1
 
             if dedup_key:
-                cutoff = (datetime.now() - self._dedup_window).isoformat()
+                cutoff = (_utcnow() - self._dedup_window).isoformat()
                 row = self._conn.execute(
                     "SELECT id, severity, dedup_count FROM events "
                     "WHERE dedup_key = ? AND timestamp >= ? "
@@ -234,7 +257,11 @@ class EventDB:
             query += " AND timestamp >= ?"; params.append(since)
         if unacknowledged_only:
             query += " AND acknowledged = 0"
-        query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+        # Order by insertion id, NOT the timestamp string (issue #5). id is a
+        # monotonic AUTOINCREMENT, so newest-inserted is always first — immune to
+        # the mixed UTC/local timestamp strings left in pre-fix databases that
+        # made the dashboard appear frozen on old rows after the v2.0.1 upgrade.
+        query += " ORDER BY id DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
         rows = self._conn.execute(query, params).fetchall()
@@ -250,8 +277,13 @@ class EventDB:
         return self._conn.execute(query, params).fetchone()[0]
 
     def get_stats(self):
-        today = datetime.now().replace(hour=0, minute=0, second=0).isoformat()
-        hour_ago = (datetime.now() - timedelta(hours=1)).isoformat()
+        # Timestamps are stored UTC (issue #5), so boundaries must be UTC too.
+        # "today" still means the user's LOCAL calendar day: take local midnight,
+        # then express it in UTC for the comparison against stored values.
+        local_midnight = datetime.now().astimezone().replace(
+            hour=0, minute=0, second=0, microsecond=0)
+        today = local_midnight.astimezone(timezone.utc).isoformat()
+        hour_ago = (_utcnow() - timedelta(hours=1)).isoformat()
 
         stats = {}
         for label, since in [("today", today), ("last_hour", hour_ago), ("total", None)]:
@@ -286,19 +318,21 @@ class EventDB:
         self._conn.commit()
 
     def cleanup(self, days=30, max_events=100000):
-        cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+        cutoff = (_utcnow() - timedelta(days=days)).isoformat()
         self._conn.execute("DELETE FROM events WHERE timestamp < ?", (cutoff,))
         count = self._conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
         if count > max_events:
+            # Trim oldest by insertion id, not timestamp string (issue #5) — a
+            # mixed-tz timestamp could otherwise delete a NEWER row.
             self._conn.execute(
                 "DELETE FROM events WHERE id IN ("
-                "SELECT id FROM events ORDER BY timestamp ASC LIMIT ?)",
+                "SELECT id FROM events ORDER BY id ASC LIMIT ?)",
                 (count - max_events,))
         self._conn.commit()
         self._conn.execute("VACUUM")
 
     def set_state(self, key, value):
-        now = datetime.now().isoformat()
+        now = _utc_iso()
         self._conn.execute(
             "INSERT OR REPLACE INTO monitor_state (key, value, updated) "
             "VALUES (?, ?, ?)", (key, value, now))

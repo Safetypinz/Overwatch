@@ -9,7 +9,9 @@ via run_coroutine_threadsafe.
 import asyncio
 import json
 import logging
+import os
 import threading
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -206,6 +208,28 @@ class APIServer:
         async def restart():
             engine.restart()
             return {"restarted": True}
+
+        @app.post("/api/system/exit")
+        async def exit_app():
+            """Shut the engine down and exit the process (issue #8).
+
+            The tray "Exit" item was the only way to stop Overwatch; if the tray
+            icon fails to render (e.g. hidden in the Win11 overflow tray), there
+            was no recovery short of taskkill. Mirror the tray's shutdown: stop
+            the engine, then hard-exit on a short delay so this HTTP response is
+            flushed to the caller first.
+            """
+            def _shutdown():
+                try:
+                    engine.stop()
+                except Exception as e:
+                    log.error("Engine stop error on /api/system/exit: %s", e)
+                finally:
+                    time.sleep(0.25)
+                    os._exit(0)
+
+            threading.Thread(target=_shutdown, daemon=True, name="overwatch-exit").start()
+            return {"exiting": True}
 
         @app.post("/api/system/away")
         async def set_away_mode(payload: dict = Body(...)):
