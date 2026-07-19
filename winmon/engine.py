@@ -49,6 +49,7 @@ class MonitorEngine:
         )
         self.updates = UpdateChecker(self.config)
         self._monitors = []
+        self._failed_monitors = []   # names of monitors that failed to start (#3)
         self._running = False
         self._paused = False
         self._cleanup_thread = None
@@ -161,6 +162,7 @@ class MonitorEngine:
 
     def _start_monitors(self):
         self._monitors = []
+        self._failed_monitors = []
         for cls in MONITOR_CLASSES:
             try:
                 mon = cls(self.config, self.db, self.notifier)
@@ -168,7 +170,14 @@ class MonitorEngine:
                 self._monitors.append(mon)
                 log.info("Started monitor: %s", cls.__name__)
             except Exception as e:
+                # A monitor that never started is a silent blind spot — surface
+                # it verbatim (#3), don't just log where nobody looks.
                 log.error("Failed to start %s: %s", cls.__name__, e)
+                self._failed_monitors.append(cls.__name__)
+                try:
+                    self.notifier.send_crash(f"monitor {cls.__name__}", e)
+                except Exception:
+                    log.exception("Failed to alert on %s start failure", cls.__name__)
 
     def _stop_monitors(self):
         for mon in self._monitors:
@@ -200,6 +209,10 @@ class MonitorEngine:
             "paused": self._paused,
             "monitors": len(self._monitors),
             "monitor_names": [type(m).__name__ for m in self._monitors],
+            # Degraded-mode surfacing (#3): the dashboard/tray can show which
+            # monitors failed to start instead of pretending all is well.
+            "degraded": bool(self._failed_monitors),
+            "failed_monitors": list(self._failed_monitors),
             "stats": self.db.get_stats(),
             "machine_name": self.config.get("general", "machine_name") or "",
             "dashboard_url": self.api.url,

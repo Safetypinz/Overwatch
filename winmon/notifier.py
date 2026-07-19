@@ -70,6 +70,37 @@ class TelegramNotifier:
         """Send a test message immediately (ignoring silent hours)."""
         self._queue.put("Overwatch Test - Telegram notifications are working!")
 
+    def send_crash(self, location, error):
+        """Alert that Overwatch (or a subsystem) hit a fatal error (issue #3).
+
+        A security monitor that silently stops watching is failing at its one
+        job (Rule 7: anything silent is presumed broken). This reports the error
+        **verbatim** — machine + where + the real exception text — never an
+        invented description (no-fabricated-alerts rule).
+
+        Sent SYNCHRONOUSLY, bypassing the dispatch queue: the caller is often a
+        dying process whose daemon dispatch thread will never run. Silent hours
+        and presence are ignored — a crash always warrants waking the owner.
+        Never raises: a crash handler must not itself crash.
+        """
+        try:
+            if not self._config.get("telegram", "enabled"):
+                log.warning("Crash at %s (Telegram disabled, not alerting): %r",
+                            location, error)
+                return
+            import socket
+            host = socket.gethostname()
+            text = (
+                "[!!] Overwatch CRASH\n"
+                f"Machine: {host}\n"
+                f"Where: {location}\n"
+                f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"{type(error).__name__}: {error}"
+            )
+            self._send_telegram(text)
+        except Exception as e:  # never let the crash-reporter crash
+            log.error("Failed to send crash alert for %s: %s", location, e)
+
     def _is_suppressed_by_presence(self, severity):
         """When the user is present, drop info-severity pings only.
 

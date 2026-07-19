@@ -131,6 +131,17 @@ if __name__ == "__main__":
         main()
     except SystemExit:
         raise
-    except BaseException:
+    except BaseException as e:
         logging.getLogger("winmon.main").exception("Unhandled exception in main()")
+        # Issue #3: never die silently. Push a verbatim crash alert to Telegram
+        # before exiting so the owner learns the monitor stopped watching.
+        # Config is a singleton, so this reuses the already-loaded Telegram
+        # settings regardless of where the crash happened; send_crash is
+        # synchronous and never raises.
+        try:
+            from winmon.config import Config
+            from winmon.notifier import TelegramNotifier
+            TelegramNotifier(Config()).send_crash("main()", e)
+        except Exception:
+            logging.getLogger("winmon.main").exception("Crash-alert failed")
         raise
