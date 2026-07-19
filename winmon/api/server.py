@@ -215,20 +215,29 @@ class APIServer:
 
             The tray "Exit" item was the only way to stop Overwatch; if the tray
             icon fails to render (e.g. hidden in the Win11 overflow tray), there
-            was no recovery short of taskkill. Mirror the tray's shutdown: stop
-            the engine, then hard-exit on a short delay so this HTTP response is
-            flushed to the caller first.
+            was no recovery short of taskkill.
+
+            Issue #9: in the packaged PyInstaller onefile build, engine.stop()
+            can hang on a stuck monitor/tray thread the bootloader waits on, so a
+            hard-exit placed *after* stop() never runs and the process lingers.
+            Fix: an INDEPENDENT watchdog forces os._exit within ~1s no matter
+            what — graceful stop is attempted in parallel, best-effort, and can
+            never block the exit.
             """
-            def _shutdown():
+            def _watchdog():
+                # Fires regardless of whether the graceful stop returns.
+                time.sleep(1.0)
+                os._exit(0)
+
+            def _graceful():
                 try:
                     engine.stop()
                 except Exception as e:
                     log.error("Engine stop error on /api/system/exit: %s", e)
-                finally:
-                    time.sleep(0.25)
-                    os._exit(0)
+                os._exit(0)   # exit immediately if stop() finished in time
 
-            threading.Thread(target=_shutdown, daemon=True, name="overwatch-exit").start()
+            threading.Thread(target=_watchdog, daemon=True, name="overwatch-exit-watchdog").start()
+            threading.Thread(target=_graceful, daemon=True, name="overwatch-exit").start()
             return {"exiting": True}
 
         @app.post("/api/system/away")
